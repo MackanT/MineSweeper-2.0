@@ -1,0 +1,4 @@
+﻿data_type;data_size;;;;;;;;;;
+menu_color;5;string;#565554;#f6f193;#7c7a77;#cfd0d2;#fbd083;;;;
+tile_color;9;string;#FFFFFF;#0000FF;#007B00;#FF0000;#00007B;#7B0000;#007B7B;#7B7B7B;#000000
+screen_size;2;int;800;600;;;;;;;
