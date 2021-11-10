@@ -46,7 +46,10 @@ class Minesweeper():
         ### TODO add menu creating below
 
         self.canvas_board.bind('<Button-1>', self.left_click)
+        self.canvas_board.bind('<Button-2>', self.middle_click)
         self.canvas_board.bind('<Button-3>', self.right_click)
+        self.canvas_board.bind('<space>', self.middle_click)
+        self.canvas_board.focus_set()
 
         self.window.resizable(False, False)
         self.canvas.pack()
@@ -120,25 +123,47 @@ class Minesweeper():
     def left_click(self, event):
 
         x, y = self.__click_to_tile(event)
+        index = self.tile_index(x, y)
 
         if self.game_state == Game_state.MENU:
 
-            index = self.tile_index(x, y)
             row = self.setting('row')
             col = self.setting('col')
 
             self.generate_board(row=row, col=col, bomb=self.setting('bomb'), initial=index)
             self.game_state = Game_state.DEBUG
         
-        self.tile_action(x=x, y=y, action='open')
+        self.tile_action(i=index, action='open')
        
     def right_click(self, event):
         x, y = self.__click_to_tile(event)
-        self.tile_action(x=x, y=y, action='flag')
+        index = self.tile_index(x, y)
+        tile_val = self.seen_tiles[index]
+
+        if tile_val == np.inf or tile_val == -np.inf:
+            self.tile_action(i=index, action='flag')
     
-    def tile_action(self, x=0, y=0, action='open'):
-        
-        i = self.tile_index(x, y)
+    def middle_click(self, event):
+    
+        x, y = self.__click_to_tile(event)
+        index = self.tile_index(x=x, y=y)
+
+        tile_val = self.seen_tiles[index]
+        if tile_val == np.inf or tile_val == -np.inf:
+            self.tile_action(i=index, action='flag')
+        elif tile_val != -1:
+
+            n_tiles = self.get_surrounding_tiles(index)
+            n_flagged = np.count_nonzero(self.seen_tiles[n_tiles] == -np.inf)
+
+            if n_flagged == tile_val:
+                to_open = []
+                hidden_index = np.where(self.seen_tiles[n_tiles] == np.inf)[0]
+                for i in hidden_index:
+                    to_open.append(n_tiles[i])
+                self.update_tiles(points=to_open, state='open')
+
+    def tile_action(self, i, action='open'):
 
         if action == 'open':
             if not self.__is_flagged(i):
@@ -264,37 +289,32 @@ class Minesweeper():
             self.window.update()
             text = self.tile_values[points]
             self.seen_tiles[points] = text
-
-            ### Open all input bombs - will never really happen as only 1 bomb can normally be opened at a time.... ;-)
+            
+            ### Open all input bombs
             if -1 in text:
-                n_list = []
+                to_open = []
                 for i, p in enumerate(text):
                     if p != -1: continue
-                    n_list.append(points[i])
-                self.update_tiles(n_list, 'bomb')
+                    to_open.append(points[i])
+                self.update_tiles(to_open, 'bomb')
                 return
             
-            n_list = []
+            to_open = []
             color = self.__setting('tile_color', 1)
             for i, p in enumerate(points):
                 
                 self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
                 self.canvas_board.itemconfig(self.drawn_tiles_num[p], state='normal')
 
+                ### Add blank tiles to next round
                 if self.seen_tiles[p] == 0:
                     sur_tiles = self.get_surrounding_tiles(points[i])                                
                     for d in sur_tiles:
-                        if self.seen_tiles[d] == np.inf and d not in n_list:
-                            n_list.append(d)
-            if len(n_list) > 0:
-                self.update_tiles(n_list, 'open')
+                        if self.seen_tiles[d] == np.inf and d not in to_open:
+                            to_open.append(d)
+            if len(to_open) > 0:
+                self.update_tiles(to_open, 'open')
                 return
-
-            
-
-            # for p in points:
-                # if p == -5: continue
-                
 
         elif state == 'flag':
             ### TODO update flag counter
@@ -306,7 +326,6 @@ class Minesweeper():
         elif state == 'bomb':
             ### TODO add game over code!
             color = self.__setting('tile_color', 3)
-            # self.seen_tiles[points] = -1
             for p in points:
                 self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
             print('Game Over')
