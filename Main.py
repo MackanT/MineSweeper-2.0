@@ -179,21 +179,26 @@ class Minesweeper():
         
         self.tile_values = np.zeros(game_size)
         self.tile_values[bomb_indexes] = -1
+        self.tile_values = np.reshape(self.tile_values, (col, row))
 
         bomb_pos = np.copy(self.tile_values)
-        bomb_pos = np.reshape(bomb_pos, (row, col))
-        bomb_counter = np.zeros(((row+2),(col+2)))
+        bomb_counter = np.zeros(((col+2),(row+2)))
 
         for x, y in ((0,0), (0,1), (0,2), (1,0), (1,2), (2,0), (2,1), (2,2)):
-            bomb_counter[x:x+row,y:y+col] += bomb_pos
+            bomb_counter[x:x+col,y:y+row] += bomb_pos
 
         ### Remove earlier added padding, and set bomb_locations to 0
         bomb_counter = bomb_counter[1:-1,1:-1]
         bomb_counter[np.where(bomb_pos == -1)] = 0
-        self.tile_values += np.reshape(np.abs(bomb_counter), game_size)        
+        self.tile_values += np.abs(bomb_counter)
+        self.tile_values = np.reshape(self.tile_values.T, game_size)
+        self.draw_numbers(row=row, col=col)
 
-    def draw_board(self, row, col):
-
+        # for i in range(col):
+        #     for j in range(row):
+        #         index = i + j*col
+        #         self.canvas_board.itemconfig(self.drawn_tiles_num[index], state='normal')
+        
         self.drawn_tiles = np.zeros((row, col), dtype=object)
         self.drawn_tiles_num = np.zeros((row, col), dtype=object)
         tmp = np.reshape(self.tile_values, (row, col))
