@@ -1,26 +1,29 @@
 from tkinter import *
 from enum import Enum
-# from PIL import Image, ImageTk
 import os
 import csv
-import threading
+# import threading
 import numpy as np
+import time
 
 cwd = os.getcwd()
 
 class Game_state(Enum):
-    GAME = 0
-    DEBUG = 1
-    BOT = 2
+    MENU = 0
+    GAME = 1
+    DEBUG = 2
+    BOT = 3
 
 class Minesweeper():
     
     def __init__(self):
         
         ### Initial Game State
-        self.game_state = Game_state.DEBUG
+        self.game_state = Game_state.MENU
 
         # Load Application Data              
+
+        self.dif = 'hard'
         self.game_parameters = self.__load_settings('settings')
 
         # Screen Settings
