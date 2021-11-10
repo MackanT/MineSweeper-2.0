@@ -219,9 +219,23 @@ class Minesweeper():
                         self.canvas_board.create_text((i+.5)*w, (j+.5)*w, 
                         text='', font=self.__get_font(size=int(w/2))))
 
-                        self.canvas_board.create_text((i+.5)*w, (j+.5)*w, 
+    def draw_numbers(self, row, col):
+        column = self.setting('col')
+        w = self.setting('w')
 
-        for i in range(row):
+        for i in range(col):
+            for j in range(row):
+                index = i + j*column
+                text = self.tile_values[index]
+                color = self.__setting('tile_color_num', int(text))
+                text = '' if (text == 0 or text == -1) else int(text)
+                self.drawn_tiles_num[index] = (
+                        self.canvas_board.create_text((i+.5)*w, (j+.5)*w, 
+                        text='{}'.format(text), 
+                        font=self.__get_font(size=int(w/2)),
+                        fill=color, state='hidden'))
+
+    def update_tiles(self, points, state='hidden'):
             for j in range(col):
                 self.drawn_tiles[i,j] = self.canvas.create_rectangle(i*w, j*w, (i+1)*w, (j+1)*w, fill='#ffffff')
                 self.drawn_tiles_num[i,j] = self.canvas.create_text((i+.5)*w, (j+.5)*w, fill='#000000', text=tmp[i,j])
