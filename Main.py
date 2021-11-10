@@ -153,6 +153,23 @@ class Minesweeper():
     def __is_flagged(self, i):
         return self.seen_tiles[i] == -np.inf
 
+    ### Initialize Game
+
+    def draw_game(self, row=16, col=30):
+
+        w = self.setting('w')
+        self.canvas_board.configure(state='normal',
+                        width=col*w,
+                        height=row*w,
+                        )
+        self.canvas.config(
+                        width=(col+2)*w,
+                        height=(row+2)*w,
+                        )
+        self.window.geometry('%dx%d'%((col+2)*w, (row+2)*w))
+        self.canvas_board.place(x=w, y=w, anchor=NW)
+        self.draw_tiles(row=row, col=col, w=w)
+
     def generate_board(self, row, col, bomb, initial):
 
         game_size = row*col
