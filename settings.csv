@@ -1,4 +1,8 @@
 ﻿data_type;data_size;;;;;;;;;;
 menu_color;5;string;#565554;#f6f193;#7c7a77;#cfd0d2;#fbd083;;;;
-tile_color;9;string;#FFFFFF;#0000FF;#007B00;#FF0000;#00007B;#7B0000;#007B7B;#7B7B7B;#000000
-screen_size;2;int;800;600;;;;;;;
+tile_color_num;9;string;#FFFFFF;#0000FF;#007B00;#FF0000;#00007B;#7B0000;#007B7B;#7B7B7B;#000000
+tile_color;4;string;#7c7a77;#cfd0d2;#fbd083;#ed2939;;;;;
+size;3;int;800;600;40;;;;;;
+easy;3;int;9;9;9;;;;;;
+medium;3;int;16;16;40;;;;;;
+hard;3;int;30;16;99;;;;;;

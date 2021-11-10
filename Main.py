@@ -31,8 +31,8 @@ class Minesweeper():
         self.window.title('The Electric Boogaloo - Minesweeper 2')
         self.window.config(bg=self.__setting('menu_color', 0))
         self.canvas = Canvas(self.window, 
-                             width = self.__setting('screen_size', 0), 
-                             height = self.__setting('screen_size', 1), 
+                             width = self.__setting('size', 0), 
+                             height = self.__setting('size', 1), 
                              bg=self.__setting('menu_color', 0),
                              borderwidth=0,
                              highlightthickness=0
@@ -46,6 +46,7 @@ class Minesweeper():
         self.window.resizable(False, False)
         self.canvas.pack()
 
+        self.draw_game(col=self.setting('col'), row=self.setting('row'))
     def __setting(self, name, index):
         """ returns setting 'name' with position 'index' """
         for row in self.game_parameters:
@@ -77,12 +78,17 @@ class Minesweeper():
                     tmp[1][:] = (int(tmp[1][i]) for i in range(len(tmp[1])))
                 data.append(tmp)
         return data
-            
-    def start_game(self, row=16, col=30, bomb=99, initial=0):
-        self.generate_board(row=row, col=col, bomb=bomb, initial=initial)
-        self.draw_board(row=row, col=col)
 
-
+    def setting(self, name):
+        
+        if name == 'col':
+            return self.__setting(self.dif, 0)
+        elif name == 'row':
+        elif name == 'w':
+            return self.__setting('size', 2) 
+        elif name == 'bomb':
+            return self.__setting(self.dif, 2)
+    
     def generate_board(self, row, col, bomb, initial):
 
         game_size = row*col
