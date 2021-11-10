@@ -199,10 +199,27 @@ class Minesweeper():
         #         index = i + j*col
         #         self.canvas_board.itemconfig(self.drawn_tiles_num[index], state='normal')
         
-        self.drawn_tiles = np.zeros((row, col), dtype=object)
-        self.drawn_tiles_num = np.zeros((row, col), dtype=object)
-        tmp = np.reshape(self.tile_values, (row, col))
-        w = 60
+
+    def draw_tiles(self, row, col, w):
+
+        self.drawn_tiles = np.zeros(col*row, dtype=object)
+        self.drawn_tiles_num = np.zeros(col*row, dtype=object)
+        self.seen_tiles = np.ones(col*row)*np.inf
+        color = self.__setting('tile_color', 0)
+        column = self.setting('col')
+
+        for i in range(col):
+            for j in range(row):
+                index = i + j*column
+                self.drawn_tiles[index] = (
+                        self.canvas_board.create_rectangle(i*w, j*w, 
+                                                          (i+1)*w, (j+1)*w, 
+                                                          fill=color))
+                self.drawn_tiles_num[index] = (
+                        self.canvas_board.create_text((i+.5)*w, (j+.5)*w, 
+                        text='', font=self.__get_font(size=int(w/2))))
+
+                        self.canvas_board.create_text((i+.5)*w, (j+.5)*w, 
 
         for i in range(row):
             for j in range(col):
