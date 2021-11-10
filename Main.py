@@ -42,7 +42,12 @@ class Minesweeper():
                              height = 0, 
                              highlightthickness=1
                             )
-        self.test_canvas = []
+
+        ### TODO add menu creating below
+
+        self.canvas_board.bind('<Button-1>', self.left_click)
+        self.canvas_board.bind('<Button-3>', self.right_click)
+
         self.window.resizable(False, False)
         self.canvas.pack()
 
@@ -84,11 +89,70 @@ class Minesweeper():
         if name == 'col':
             return self.__setting(self.dif, 0)
         elif name == 'row':
+            return self.__setting(self.dif, 1)
         elif name == 'w':
             return self.__setting('size', 2) 
         elif name == 'bomb':
             return self.__setting(self.dif, 2)
     
+    ### User Input
+
+    def __click_to_tile(self, event):
+        w = self.setting('w')
+        x = int(event.x/w)
+        y = int(event.y/w)
+        return x, y
+
+    def left_click(self, event):
+
+        x, y = self.__click_to_tile(event)
+
+        if self.game_state == Game_state.MENU:
+
+            index = self.tile_index(x, y)
+            row = self.setting('row')
+            col = self.setting('col')
+
+            self.generate_board(row=row, col=col, bomb=self.setting('bomb'), initial=index)
+            self.game_state = Game_state.DEBUG
+        
+        self.tile_action(x=x, y=y, action='open')
+       
+    def right_click(self, event):
+        x, y = self.__click_to_tile(event)
+        self.tile_action(x=x, y=y, action='flag')
+    
+    def tile_action(self, x=0, y=0, action='open'):
+        
+        i = self.tile_index(x, y)
+
+        if action == 'open':
+            if not self.__is_flagged(i):
+                self.update_tiles(points=i, state='open')
+            
+        elif action == 'flag':
+            if self.__is_open(i): return
+            if self.__is_flagged(i):
+                self.update_tiles(points=i, state='hidden')
+            elif not self.__is_flagged(i):
+                self.update_tiles(points=i, state='flag')
+
+        self.window.update()
+
+    def tile_index(self, x, y):
+        return x + y*self.setting('col')
+    
+    def tile_xy(self, index):
+        x = int(index / self.setting('col'))
+        y = index % self.setting('col')
+        return x, y
+
+    def __is_open(self, i):
+        return 0 < self.seen_tiles[i] < np.inf
+
+    def __is_flagged(self, i):
+        return self.seen_tiles[i] == -np.inf
+
     def generate_board(self, row, col, bomb, initial):
 
         game_size = row*col
