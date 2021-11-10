@@ -37,7 +37,7 @@ class Minesweeper():
                              borderwidth=0,
                              highlightthickness=0
                             )
-        self.game_canvas = Canvas(self.window, 
+        self.canvas_board = Canvas(self.window, 
                              width = 0, 
                              height = 0, 
                              highlightthickness=1
@@ -52,6 +52,20 @@ class Minesweeper():
         self.canvas.pack()
 
         self.draw_game(col=self.setting('col'), row=self.setting('row'))
+        # self.test_code()
+
+    def test_code(self):
+        in_time = time.time()
+        for i in range(1000):
+            self.draw_game(row=16, col=30, bomb=99)
+        print('Time ellapsed: {} s'.format(time.time()-in_time))
+
+    ### Game Logic / Behing the scenes
+
+    def __get_font(self, size=20, bold=True):
+        if bold: return ("GOST Common", size, "bold")
+        else: return ("GOST Common", size)   
+
     def __setting(self, name, index):
         """ returns setting 'name' with position 'index' """
         for row in self.game_parameters:
@@ -236,16 +250,79 @@ class Minesweeper():
                         fill=color, state='hidden'))
 
     def update_tiles(self, points, state='hidden'):
-            for j in range(col):
-                self.drawn_tiles[i,j] = self.canvas.create_rectangle(i*w, j*w, (i+1)*w, (j+1)*w, fill='#ffffff')
-                self.drawn_tiles_num[i,j] = self.canvas.create_text((i+.5)*w, (j+.5)*w, fill='#000000', text=tmp[i,j])
-                if tmp[i,j] == -1:
-                    self.canvas.itemconfig(self.drawn_tiles[i,j], fill='#3ee121')
 
+        if type(points) == int: points = [points]
 
-    def print_board(self, x, y):
-        print(np.reshape(self.tile_values, (x, y)))
+        if state == 'hidden':
+            color = self.__setting('tile_color', 0)
+            self.seen_tiles[points] = np.inf
+            for p in points:
+                self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+        
+        elif state == 'open':
 
+            self.window.update()
+            text = self.tile_values[points]
+            self.seen_tiles[points] = text
+
+            ### Open all input bombs - will never really happen as only 1 bomb can normally be opened at a time.... ;-)
+            if -1 in text:
+                n_list = []
+                for i, p in enumerate(text):
+                    if p != -1: continue
+                    n_list.append(points[i])
+                self.update_tiles(n_list, 'bomb')
+                return
+            
+            n_list = []
+            color = self.__setting('tile_color', 1)
+            for i, p in enumerate(points):
+                
+                self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+                self.canvas_board.itemconfig(self.drawn_tiles_num[p], state='normal')
+
+                if self.seen_tiles[p] == 0:
+                    sur_tiles = self.get_surrounding_tiles(points[i])                                
+                    for d in sur_tiles:
+                        if self.seen_tiles[d] == np.inf and d not in n_list:
+                            n_list.append(d)
+            if len(n_list) > 0:
+                self.update_tiles(n_list, 'open')
+                return
+
+            
+
+            # for p in points:
+                # if p == -5: continue
+                
+
+        elif state == 'flag':
+            ### TODO update flag counter
+            self.seen_tiles[points] = -np.inf
+            color = self.__setting('tile_color', 2)
+            for p in points:
+                self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+
+        elif state == 'bomb':
+            ### TODO add game over code!
+            color = self.__setting('tile_color', 3)
+            # self.seen_tiles[points] = -1
+            for p in points:
+                self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+            print('Game Over')
+    
+    def get_surrounding_tiles(self, index):
+        
+        i, j = self.tile_xy(index)
+        col = self.setting('col')
+        row = self.setting('row')
+        points = []
+
+        for x, y in ((-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)):
+            dx, dy = i+x, j+y
+            if (0 <= dx < row) and (0 <= dy < col):
+                points.append(self.tile_index(dy, dx))
+        return points
 
     def mainloop(self):
         self.window.mainloop()
