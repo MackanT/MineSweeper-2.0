@@ -11,8 +11,10 @@ cwd = os.getcwd()
 class Game_state(Enum):
     MENU = 0
     GAME = 1
-    DEBUG = 2
-    BOT = 3
+    DONE = 2
+    DEBUG = 3
+    BOT = 4
+
 
 class Minesweeper():
     
@@ -162,7 +164,9 @@ class Minesweeper():
             self.tile_action(i=index, action='flag')
     
     def middle_click(self, event):
-    
+        
+        if self.game_state == Game_state.DONE: return
+
         x, y = self.__click_to_tile(event)
         index = self.tile_index(x=x, y=y)
 
@@ -182,6 +186,8 @@ class Minesweeper():
                 self.update_tiles(points=to_open, state='open')
 
     def tile_action(self, i, action='open'):
+
+        if self.game_state == Game_state.DONE: return
 
         if action == 'open':
             if not self.__is_flagged(i):
@@ -250,19 +256,18 @@ class Minesweeper():
         
         self.tile_values = np.zeros(game_size)
         self.tile_values[bomb_indexes] = -1
-        self.tile_values = np.reshape(self.tile_values, (col, row))
-
+        self.tile_values = np.reshape(self.tile_values, (row, col))
         bomb_pos = np.copy(self.tile_values)
-        bomb_counter = np.zeros(((col+2),(row+2)))
+        bomb_counter = np.zeros(((row+2),(col+2)))
 
         for x, y in ((0,0), (0,1), (0,2), (1,0), (1,2), (2,0), (2,1), (2,2)):
-            bomb_counter[x:x+col,y:y+row] += bomb_pos
+            bomb_counter[x:x+row,y:y+col] += bomb_pos
 
         ### Remove earlier added padding, and set bomb_locations to 0
         bomb_counter = bomb_counter[1:-1,1:-1]
         bomb_counter[np.where(bomb_pos == -1)] = 0
         self.tile_values += np.abs(bomb_counter)
-        self.tile_values = np.reshape(self.tile_values.T, game_size)
+        self.tile_values = np.reshape(self.tile_values, game_size)
         self.draw_numbers(row=row, col=col)
 
         # for i in range(col):
@@ -270,7 +275,6 @@ class Minesweeper():
         #         index = i + j*col
         #         self.canvas_board.itemconfig(self.drawn_tiles_num[index], state='normal')
         
-
     def draw_tiles(self, row, col, w):
 
         self.drawn_tiles = np.zeros(col*row, dtype=object)
