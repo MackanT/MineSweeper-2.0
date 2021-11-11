@@ -2,7 +2,7 @@ from tkinter import *
 from enum import Enum
 import os
 import csv
-# import threading
+import threading
 import numpy as np
 import time
 
@@ -24,6 +24,7 @@ class Minesweeper():
         # Load Application Data              
 
         self.dif = 'hard'
+        self.game_time = 0
         self.game_parameters = self.__load_settings('settings')
 
         # Screen Settings
@@ -55,6 +56,9 @@ class Minesweeper():
         self.canvas.pack()
 
         self.draw_game(col=self.setting('col'), row=self.setting('row'))
+
+        self.start_timer()
+        
         # self.test_code()
 
     def test_code(self):
@@ -62,6 +66,19 @@ class Minesweeper():
         for i in range(1000):
             self.draw_game(row=16, col=30, bomb=99)
         print('Time ellapsed: {} s'.format(time.time()-in_time))
+
+    ### Timer Functions
+
+    def start_timer(self):
+        threading.Timer(1.0, self.start_timer).start()
+        if self.game_state == Game_state.GAME:
+            self.game_time += 1
+            self.canvas.itemconfig(self.time_indicator, 
+                                   text='\u23f3 {}'.format(self.game_time))
+
+    def reset_timer(self):
+        self.game_time = 0
+
 
     ### Game Logic / Behing the scenes
 
@@ -131,7 +148,7 @@ class Minesweeper():
             col = self.setting('col')
 
             self.generate_board(row=row, col=col, bomb=self.setting('bomb'), initial=index)
-            self.game_state = Game_state.DEBUG
+            self.game_state = Game_state.GAME
         
         self.tile_action(i=index, action='open')
        
@@ -207,6 +224,15 @@ class Minesweeper():
                         )
         self.window.geometry('%dx%d'%((col+2)*w, (row+2)*w))
         self.canvas_board.place(x=w, y=w, anchor=NW)
+
+
+        ### Time indicator
+        font=self.__get_font()
+        fill=self.__setting('menu_color', 3)
+        text='\u23f3 {}'.format(self.game_time)
+        self.time_indicator = self.canvas.create_text(w, w/2, anchor=W, 
+                                            font=font, fill=fill, text=text )
+        
         self.draw_tiles(row=row, col=col, w=w)
 
     def generate_board(self, row, col, bomb, initial):
