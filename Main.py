@@ -24,8 +24,9 @@ class Minesweeper():
         # Load Application Data              
 
         self.dif = 'hard'
-        self.game_time = 0
         self.game_parameters = self.__load_settings('settings')
+        self.game_time = 0
+        self.flag_counter = self.__setting(self.dif, 2)
 
         # Screen Settings
         self.window = Tk()
@@ -58,7 +59,7 @@ class Minesweeper():
         self.draw_game(col=self.setting('col'), row=self.setting('row'))
 
         self.start_timer()
-        
+
         # self.test_code()
 
     def test_code(self):
@@ -151,7 +152,7 @@ class Minesweeper():
             self.game_state = Game_state.GAME
         
         self.tile_action(i=index, action='open')
-       
+            
     def right_click(self, event):
         x, y = self.__click_to_tile(event)
         index = self.tile_index(x, y)
@@ -231,7 +232,12 @@ class Minesweeper():
         fill=self.__setting('menu_color', 3)
         text='\u23f3 {}'.format(self.game_time)
         self.time_indicator = self.canvas.create_text(w, w/2, anchor=W, 
-                                            font=font, fill=fill, text=text )
+                                            font=font, fill=fill, text=text)
+
+        ### Flag indicator
+        text='{} \u2690'.format(self.flag_counter)
+        self.flag_indicator = self.canvas.create_text(w*(col + 1), w/2, anchor=E, 
+                                            font=font, fill=fill, text=text)
         
         self.draw_tiles(row=row, col=col, w=w)
 
@@ -305,6 +311,7 @@ class Minesweeper():
         if type(points) == int: points = [points]
 
         if state == 'hidden':
+            self.update_flags(1)
             color = self.__setting('tile_color', 0)
             self.seen_tiles[points] = np.inf
             for p in points:
@@ -343,7 +350,7 @@ class Minesweeper():
                 return
 
         elif state == 'flag':
-            ### TODO update flag counter
+            self.update_flags(-1)
             self.seen_tiles[points] = -np.inf
             color = self.__setting('tile_color', 2)
             for p in points:
@@ -354,8 +361,14 @@ class Minesweeper():
             color = self.__setting('tile_color', 3)
             for p in points:
                 self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+            self.game_state = Game_state.DONE
             print('Game Over')
-    
+
+    def update_flags(self, dif):
+        self.flag_counter += dif
+        self.canvas.itemconfig(self.flag_indicator,
+                               text='{} \u2690'.format(self.flag_counter))
+
     def get_surrounding_tiles(self, index):
         
         i, j = self.tile_xy(index)
