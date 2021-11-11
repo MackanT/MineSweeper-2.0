@@ -26,10 +26,9 @@ class Minesweeper():
 
         # Load Application Data              
 
-        self.dif = 'hard'
+        self.dif = 'easy'
         self.game_parameters = self.__load_settings('settings')
-        self.game_time = 0
-        self.flag_counter = self.__setting(self.dif, 2)
+        self.array_button = []
 
         # Screen Settings
         self.window = Tk()
@@ -45,7 +44,8 @@ class Minesweeper():
         self.canvas_board = Canvas(self.window, 
                              width = 0, 
                              height = 0, 
-                             highlightthickness=1
+                             highlightthickness=2,
+                             highlightcolor=self.__setting('menu_color', 3)
                             )
 
         ### TODO add menu creating below
@@ -366,6 +366,7 @@ class Minesweeper():
             for j in range(row):
                 index = i + j*column
                 text = self.tile_values[index]
+                if text == -1: text = 0
                 color = self.__setting('tile_color_num', int(text))
                 text = '' if (text == 0 or text == -1) else int(text)
                 self.drawn_tiles_num[index] = (
