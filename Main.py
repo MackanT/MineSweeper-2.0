@@ -49,6 +49,7 @@ class Minesweeper():
 
         ### TODO add menu creating below
 
+        self.canvas.bind('<Button-1>', self.button_click)
         self.canvas_board.bind('<Button-1>', self.left_click)
         self.canvas_board.bind('<Button-2>', self.middle_click)
         self.canvas_board.bind('<Button-3>', self.right_click)
@@ -108,7 +109,7 @@ class Minesweeper():
             print('File {} does not exist!'.format(file_name))
             return False
 
-        with open(file_name) as csvfile:
+        with open(file_name, encoding="utf-8") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=';')
             next(csv_reader)
             data = []
@@ -140,13 +141,54 @@ class Minesweeper():
         y = int(event.y/w)
         return x, y
 
-    def left_click(self, event):
+    def find_clicked_button(self, x, y):
+        for i, item in enumerate(self.array_button): 
+            if item.point_in_box(x, y):
+                return self.array_button[i].get_name()
+
+    def button_click(self, event):
+            
+        button_clicked = self.find_clicked_button(event.x, event.y)
+        if button_clicked == None: return
+        button_names = self.__setting('buttons', -1)
+
+        if button_clicked == button_names[0]:
+            self.menu_difficulty_select()
+        elif button_clicked == button_names[1]:
+            self.menu_statistics()
+        elif button_clicked == button_names[2]:
+            self.menu_settings()
+        elif button_clicked == button_names[3]: 
+            self.menu_credits()
+        elif button_clicked == button_names[4]:
+            self.window.destroy()
+        elif button_clicked == button_names[5]:
+            self.leave_startup(0)
+        elif button_clicked == button_names[6]:
+            self.leave_startup(1)
+        elif button_clicked == button_names[7]:
+            self.leave_startup(2)
+        elif button_clicked == button_names[8]:
+            self.draw_startup()
+        elif button_clicked == button_names[9]:
+            self.generate_default_highscores()
+        elif button_clicked == button_names[10]:
+            self.save_settings()
+        elif button_clicked == button_names[11]:
+            # self.draw_startup()
+            print('Main Menu....')
+        elif button_clicked == button_names[12]:
+            self.new_game()
+        elif button_clicked == button_names[13]:
+            self.new_game()
+            self.minesweeper_bot()
+
+    def left_click(self, event):  
 
         x, y = self.__click_to_tile(event)
         index = self.tile_index(x, y)
 
-        if self.game_state == Game_state.MENU:
-
+        if self.game_state == Game_state.STARTUP:
             row = self.setting('row')
             col = self.setting('col')
 
@@ -236,16 +278,30 @@ class Minesweeper():
         ### Time indicator
         font=self.__get_font()
         fill=self.__setting('menu_color', 3)
-        text='\u23f3 {}'.format(self.game_time)
         self.time_indicator = self.canvas.create_text(w, w/2, anchor=W, 
-                                            font=font, fill=fill, text=text)
+                                            font=font, fill=fill, text='')
 
         ### Flag indicator
-        text='{} \u2690'.format(self.flag_counter)
         self.flag_indicator = self.canvas.create_text(w*(col + 1), w/2, anchor=E, 
-                                            font=font, fill=fill, text=text)
+                                            font=font, fill=fill, text='')
         
-        self.draw_tiles(row=row, col=col, w=w)
+        ### New game button
+        game_buttons = self.__setting('game_screen', -1)
+        for i, index in enumerate(game_buttons):
+            text = self.__setting('buttons', index)
+            self.array_button.append(Button(canvas=self.canvas, 
+                                        x=w*(i+1)/6 * (2*col +1), 
+                                        y=int(w/8), 
+                                        width=w,
+                                        height=int(3/4*w),
+                                        fill=self.__setting('menu_color', 0),
+                                        fg=fill,
+                                        bd=fill,
+                                        font=self.__get_font(), 
+                                        text=text,
+                                        tag=text))
+        
+        self.new_game()
 
     def generate_board(self, row, col, bomb, initial):
 
@@ -389,6 +445,64 @@ class Minesweeper():
     def mainloop(self):
         self.window.mainloop()
 
+class Button():
+
+    def __init__(self, x=0, y=0, width=10, height=10, text='', font=("Arial", 12), fill='#123123', canvas=None, tag=None, fg='#ffffff', bd='#000000'):
+        
+        self.canvas = canvas
+        self.x, self.y = x, y
+        self.width, self.height = width, height
+        self.text = text
+        self.fill = fill
+        self.fg, self.bd = fg, bd
+        self.font = font
+        self.mouse_in_box = False
+        self.tag = tag
+
+        self.create_button()
+
+    def create_button(self):
+        self.button_area = self.canvas.create_rectangle(self.x, self.y, self.x + self.width, self.y + self.height, fill=self.fill, outline=self.bd, width=2)
+        self.button_text = self.canvas.create_text(self.x + self.width/2, self.y + self.height/2, text=self.text, font=self.font, fill=self.fg)
+
+    def delete_button(self):
+        self.canvas.delete(self.button_area)
+        self.canvas.delete(self.button_text)
+    
+    def get_tag(self):
+        return self.tag
+    
+    def set_tag(self, tag):
+        self.tag = tag
+
+    def get_x(self):
+        return self.x
+
+    def get_y(self):
+        return self.y
+
+    def get_width(self):
+        return self.width
+
+    def get_height(self):
+        return self.height
+
+    def get_name(self):
+        return self.text
+
+    def point_in_box(self, x, y):
+
+        x_bool = (x >= self.x) and (x <= self.x + self.width)
+        y_bool = (y >= self.y) and (y <= self.y + self.height)
+
+        if x_bool and y_bool: return True
+        else: return False
+    
+    def set_button_highlighted(self, state):
+        self.mouse_in_box = state
+
+    def get_button_highlighted(self):
+        return self.mouse_in_box
 
 game_instance = Minesweeper()
 game_instance.mainloop()

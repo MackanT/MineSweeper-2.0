@@ -1,8 +1,15 @@
-﻿data_type;data_size;;;;;;;;;;
-menu_color;5;string;#565554;#f6f193;#7c7a77;#cfd0d2;#fbd083;;;;
-tile_color_num;9;string;#FFFFFF;#0000FF;#007B00;#FF0000;#00007B;#7B0000;#007B7B;#7B7B7B;#000000
-tile_color;4;string;#7c7a77;#cfd0d2;#fbd083;#ed2939;;;;;
-size;3;int;800;600;40;;;;;;
-easy;3;int;9;9;9;;;;;;
-medium;3;int;16;16;40;;;;;;
-hard;3;int;30;16;99;;;;;;
+﻿data_type;data_size;;;;;;;;;;;;;;;
+menu_color;5;string;#565554;#f6f193;#7c7a77;#cfd0d2;#fbd083;;;;;;;;;
+tile_color_num;9;string;#FFFFFF;#0000FF;#007B00;#FF0000;#00007B;#7B0000;#007B7B;#7B7B7B;#000000;;;;;
+tile_color;4;string;#7c7a77;#cfd0d2;#fbd083;#ed2939;;;;;;;;;;
+size;3;int;800;600;40;;;;;;;;;;;
+easy;3;int;9;9;9;;;;;;;;;;;
+medium;3;int;16;16;40;;;;;;;;;;;
+hard;3;int;30;16;99;;;;;;;;;;;
+buttons;14;string;New Game;Stats;Settings;Credits;Quit;Easy;Medium;Hard;Back;Reset;Save;⮠ ;⟳;Bot
+main_menu;6;int;5;0;1;2;3;4;;;;;;;;
+difficulty_screen;5;int;4;5;6;7;8;;;;;;;;;
+stats_screen;3;int;2;9;8;;;;;;;;;;;
+settings_screen;3;int;2;10;8;;;;;;;;;;;
+game_screen;2;int;11;12;;;;;;;;;;;;
+credits_screen;2;int;1;8;;;;;;;;;;;;
