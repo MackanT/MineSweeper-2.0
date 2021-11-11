@@ -78,11 +78,7 @@ class Minesweeper():
         threading.Timer(1.0, self.start_timer).start()
         if self.game_state == Game_state.GAME:
             self.game_time += 1
-            self.canvas.itemconfig(self.time_indicator, 
-                                   text='\u23f3 {}'.format(self.game_time))
-
-    def reset_timer(self):
-        self.game_time = 0
+            self.__update_timer()
 
 
     ### Game Logic / Behing the scenes
@@ -94,7 +90,9 @@ class Minesweeper():
     def __setting(self, name, index):
         """ returns setting 'name' with position 'index' """
         for row in self.game_parameters:
-            if row[0] == name: return row[1][index]
+            if row[0] == name: 
+                if index == -1: return row[1]
+                return row[1][index]
         return False
 
     def __load_settings(self, folder):
@@ -381,7 +379,7 @@ class Minesweeper():
         if type(points) == int: points = [points]
 
         if state == 'hidden':
-            self.update_flags(1)
+            self.__update_flags(1)
             color = self.__setting('tile_color', 0)
             self.seen_tiles[points] = np.inf
             for p in points:
@@ -420,7 +418,7 @@ class Minesweeper():
                 return
 
         elif state == 'flag':
-            self.update_flags(-1)
+            self.__update_flags(-1)
             self.seen_tiles[points] = -np.inf
             color = self.__setting('tile_color', 2)
             for p in points:
@@ -433,11 +431,21 @@ class Minesweeper():
                 self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
             self.game_state = Game_state.DONE
             print('Game Over')
+        
+        n_hidden = np.count_nonzero(self.seen_tiles == np.inf)
+        n_flags = np.count_nonzero(self.seen_tiles == -np.inf)
+        if n_hidden + n_flags == self.setting('bomb'):
+            self.game_state = Game_state.DONE
+            print('Victory')
 
-    def update_flags(self, dif):
+    def __update_flags(self, dif):
         self.flag_counter += dif
         self.canvas.itemconfig(self.flag_indicator,
                                text='{} \u2690'.format(self.flag_counter))
+
+    def __update_timer(self):
+        self.canvas.itemconfig(self.time_indicator, 
+                                   text='\u23f3 {}'.format(self.game_time))
 
     def get_surrounding_tiles(self, index):
         
