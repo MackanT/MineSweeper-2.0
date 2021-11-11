@@ -10,10 +10,11 @@ cwd = os.getcwd()
 
 class Game_state(Enum):
     MENU = 0
-    GAME = 1
-    DONE = 2
-    DEBUG = 3
-    BOT = 4
+    STARTUP = 1
+    GAME = 2
+    DONE = 3
+    DEBUG = 4
+    BOT = 5
 
 
 class Minesweeper():
@@ -21,7 +22,7 @@ class Minesweeper():
     def __init__(self):
         
         ### Initial Game State
-        self.game_state = Game_state.MENU
+        self.game_state = Game_state.STARTUP
 
         # Load Application Data              
 
@@ -259,6 +260,15 @@ class Minesweeper():
         return self.seen_tiles[i] == -np.inf
 
     ### Initialize Game
+
+    def new_game(self):
+        self.game_time = 0
+        self.__update_timer()
+        self.flag_counter = self.__setting(self.dif, 2)
+        self.__update_flags(0)
+        self.game_state = Game_state.STARTUP
+        self.canvas_board.delete("all")
+        self.draw_tiles(row=self.setting('row'), col=self.setting('col'), w=self.setting('w'))
 
     def draw_game(self, row=16, col=30):
 
