@@ -26,7 +26,7 @@ class Minesweeper():
 
         # Load Application Data              
 
-        self.dif = 'medium'
+        self.dif = 'hard'
         self.game_parameters = self.__load_settings('settings')
         self.array_button = []
 
@@ -143,6 +143,8 @@ class Minesweeper():
             self.run_bot(initial_run=True)
 
     def run_bot(self, initial_run=False):
+
+        if self.game_state != Game_state.BOT: return
         
         if initial_run:
 
@@ -169,6 +171,7 @@ class Minesweeper():
         if self.backtrack_bot():
             self.run_bot()
 
+        if self.game_state != Game_state.BOT: return
         open_tile = self.get_random_tile()
         print('Opening ', open_tile)
         self.update_tiles(open_tile, state='open')
@@ -202,6 +205,7 @@ class Minesweeper():
 
         f_index = np.where(board[tmp] == -np.inf)[0]
 
+        if len(a) > board[neig]: return False
         if len(f_index) + 1 == board[neig]:
             self.update_tiles(a, state='open')
             return True
@@ -271,6 +275,8 @@ class Minesweeper():
                     if sum(np.isin(n, n_tiles)) == 2:
                         if self.logic_search(chain=c, tile=tile, board=temp_board, neig=neig):
                             logic_success = True
+                            self.window.update()
+                            self.run_bot()
                             tmp = self.get_interesting_tiles()
                             temp_board[tmp] = self.seen_tiles[tmp]
                         break
@@ -554,9 +560,8 @@ class Minesweeper():
 
     def update_tiles(self, points, state='hidden'):
 
-        # if type(points) == np.int32: points = [points]
-        # if type(points) == int: points = [points]
-        print(points)
+        if self.game_state == Game_state.DONE: return
+
         points = np.array(points)
 
         if state == 'hidden':
@@ -570,13 +575,13 @@ class Minesweeper():
         elif state == 'open':
 
             self.window.update()
-            text = self.tile_values[points]
+            text = np.array(self.tile_values[points])
             self.seen_tiles[points] = text
             
             ### Open all input bombs
-            if np.isin(text, -1):
+            if -1 in text:
                 to_open = []
-                for i, p in enumerate(text):
+                for i, p in np.ndenumerate(text):
                     if p != -1: continue
                     to_open.append(points[i])
                 self.update_tiles(to_open, 'bomb')
@@ -584,7 +589,7 @@ class Minesweeper():
             
             to_open = []
             color = self.__setting('tile_color', 1)
-            for i, p in enumerate(points):
+            for i, p in np.ndenumerate(points):
                 
                 self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
                 self.canvas_board.itemconfig(self.drawn_tiles_num[p], state='normal')
