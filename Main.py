@@ -1,10 +1,13 @@
 from tkinter import *
 from enum import Enum
+from PIL import Image, ImageTk
 import os
 import csv
 import threading
 import numpy as np
 import time
+
+from numpy.core.defchararray import index
 
 cwd = os.getcwd()
 
@@ -26,7 +29,7 @@ class Minesweeper():
 
         # Load Application Data              
 
-        self.dif = 'hard'
+        self.dif = 'medium'
         self.game_parameters = self.__load_settings('settings')
         self.array_button = []
 
@@ -47,6 +50,7 @@ class Minesweeper():
                              highlightthickness=2,
                              highlightcolor=self.__setting('menu_color', 3)
                             )
+        self.test_canvas = []
 
         ### TODO add menu creating below
 
@@ -68,9 +72,23 @@ class Minesweeper():
         # self.test_code()
 
     def test_code(self):
+        self.draw_game(row=15, col=30)
+        self.generate_board(row=15, col=30, bomb=99, initial=15)
+        tile_check = [10, 11, 40, 51, 50, 12, 13, 5, 7, 17, 89, 9, 19, 22, 41, 42, 43, 44, 45]
+        temp_board = self.seen_tiles
+        n = self.get_surrounding_tiles(15)
+        surrounding_tiles = []
+
+        for tile in tile_check:
+            surrounding_tiles.append([tile, self.get_surrounding_tiles(tile)])
+
         in_time = time.time()
-        for i in range(1000):
-            self.draw_game(row=16, col=30, bomb=99)
+        for i in range(1000000):
+       
+            surround_index = self.get_neighbours(10, surrounding_tiles)
+            
+
+
         print('Time ellapsed: {} s'.format(time.time()-in_time))
 
     ### Timer Functions
@@ -138,13 +156,22 @@ class Minesweeper():
     def initiate_bot(self, event):
         """ Initiates minesweeper auto-solver, ensures it can only run once/game """
 
+        # self.win_state = False
+        # win_counter = 0
+
+        # for i in range(100):
+        #     win_counter += self.win_state
+        #     self.win_state = False
+        #     self.new_game()
         if self.game_state != Game_state.BOT:
             self.game_state = Game_state.BOT
             self.run_bot(initial_run=True)
 
+        # print(win_counter)
+
     def run_bot(self, initial_run=False):
 
-        if self.game_state != Game_state.BOT: return
+        if self.game_state == Game_state.DONE: return
         
         if initial_run:
 
@@ -159,21 +186,18 @@ class Minesweeper():
 
             self.generate_board(row=row, col=col, bomb=bombs, initial=open_tile)
             self.tile_action(open_tile)
-        else:
-            print('Backtracking!')
 
         while True:
             if self.check_tiles() == False: break
-
-        print('No more basic moves - Starting up backtracking')
 
         self.window.update()
         if self.backtrack_bot():
             self.run_bot()
 
-        if self.game_state != Game_state.BOT: return
+        if self.game_state == Game_state.DONE: return
+
         open_tile = self.get_random_tile()
-        print('Opening ', open_tile)
+        print('Guessing tile', open_tile)
         self.update_tiles(open_tile, state='open')
         self.run_bot()
 
@@ -189,108 +213,127 @@ class Minesweeper():
         tile_check = np.intersect1d(t_hidden, t_blank)
         return np.intersect1d(tile_check, t_done)
 
-    def logic_search(self, chain, tile, board, neig):
+    def logic_search(self, tile, board, neig, neighbours):
         
-        tile_check = self.get_surrounding_tiles(tile)
+        tile_check = self.get_neighbours(tile, neighbours)
+        
         hidden_index = np.where(board[tile_check] == np.inf)[0]
         n_hidden = tile_check[hidden_index]
 
-        tmp = self.get_surrounding_tiles(neig)
+        tmp = self.get_neighbours(neig, neighbours)
         t_index = np.where(board[tmp] == np.inf)[0]
         t_hidden = tmp[t_index]
 
-        a = np.setxor1d(n_hidden, t_hidden)
+        common_hidden = np.intersect1d(n_hidden, t_hidden)
+        com_hidden_num = len(common_hidden)
+        tile_flags = len(np.where(board[tmp] == -np.inf)[0])
+        tile_rem_flag = board[neig] - tile_flags
+
+        t_board = np.setxor1d(tmp, common_hidden)
+        print(t_board)
         
-        if len(a) == 0: return False
+        
+        # a = np.setxor1d(n_hidden, t_hidden)    
 
-        f_index = np.where(board[tmp] == -np.inf)[0]
+        ### if # hidden i tile > # kavarstående flaggor > skip
 
-        if len(a) > board[neig]: return False
-        if len(f_index) + 1 == board[neig]:
-            self.update_tiles(a, state='open')
-            return True
-        elif len(f_index) + len(a) + 1 == board[neig]:
-            self.update_tiles(a, state='flag')
-            return True
-        return False
+        # # Num flag for neighbour
+        # neig_flags = len(np.where(board[tmp] == -np.inf)[0])
+        # neig_rem_flag = board[neig] - neig_flags
 
-    def get_chain(self, tile, board, chain):
+        # tile_flags = len(np.where(board[tile_check] == -np.inf)[0])
 
-        nearby_tiles = self.get_surrounding_tiles(tile)
-        a = board[nearby_tiles]
-        num_index = np.where(np.logical_and(a>=1, a<=8))
-        nearby_tiles = nearby_tiles[num_index]
+        # #### TODO FIX LOGIX BELOW!!!
+        # # if len(a) > board[neig]: return False
+
+        # if tile_flags + neig_rem_flag < board[tile]:
+        #     self.update_tiles(a, state='flag')
+        #     return True
+        # elif tile_flags + neig_rem_flag == board[tile]:
+        #     self.update_tiles(a, state='open')
+        #     return True
+        # return False
+
+
+        # if len(f_index) + 1 == board[neig]:
+        #     self.update_tiles(a, state='open')
+        #     return True
+        # elif len(f_index) + len(a) + 1 == board[neig]:
+        #     self.update_tiles(a, state='flag')
+        #     return True
+        # return False
+
+    def get_chain(self, tile, neighbours, board, chain):
+
+        neig = self.get_neighbours(tile, neighbours)
+        neig_vals = board[neig]
+        num_index = np.where(np.logical_and(neig_vals>=1, neig_vals<=8))
+        nearby_tiles = neig[num_index]
         for t in nearby_tiles:
             if t not in chain:
                 chain.append(t)
-                self.get_chain(t, board, chain)
+                self.get_chain(tile=t, neighbours=neighbours, board=board, chain=chain)
         return chain
+
+    def get_neighbours(self, val, list):
+        for i, s in enumerate(list):
+            if s[0] == val:
+                return s[1]
 
     def backtrack_bot(self):
         
         logic_success = False
         tile_check = self.get_interesting_tiles()
+        surrounding_tiles = []
+
+        for tile in tile_check:
+            surrounding_tiles.append([tile, self.get_surrounding_tiles(tile)])
+            
         temp_board = np.zeros(np.size(self.seen_tiles))
         temp_board[tile_check] = self.seen_tiles[tile_check]
 
+        ### TODO chains jump through 1 block spaces i.e. xxx ?
+        ### x=hidden, n=num, f=flag > still chain        nfn 
         chains = []
         for tile in tile_check:
-            chain = [tile]
-            if len(chains) == 0:
-                chains.append(self.get_chain(tile=tile, board=temp_board, chain=chain))
-            else:
-                if any(tile in i for i in chains): continue
-                chains.append(self.get_chain(tile=tile, board=temp_board, chain=chain))
+            if any(tile in i for i in chains): continue
+            chains.append(self.get_chain(tile=tile, neighbours=surrounding_tiles, board=temp_board, chain=[tile]))    
         
         # Gathers neighbouring values to interesting tiles
-        for tile in tile_check:
-            nearby_tiles = self.get_surrounding_tiles(tile)
-            temp_board[nearby_tiles] = self.seen_tiles[nearby_tiles]
+        for indexes in surrounding_tiles:
+            temp_board[indexes[1]] = self.seen_tiles[indexes[1]]
 
         for c in chains:
             if len(c) == 1: continue
-            ### TODO add logic to jump chain if all have been attempted, i.e. chain [1, 17] is done if not found for 1
-
-            ### TODO optimize so attempts every chain and possible several attempts / Chain before returning
+            
             for tile in c: 
-
-                nearby_tiles = self.get_surrounding_tiles(tile)
-                n_index = np.where(temp_board[nearby_tiles] == np.inf)[0]
                 
-                if len(n_index) <= temp_board[tile] - 1: continue
-
-                n_tiles = nearby_tiles[n_index]
-                flag_index = np.where(temp_board[nearby_tiles] == -np.inf)[0]
-                flag_rem = temp_board[tile] - len(flag_index)
-
-                ### Start with easiest case, i.e. only 2 options
-                if flag_rem != 1: continue
-    
-                for neig in np.intersect1d(nearby_tiles, c):
-
-                    n = self.get_surrounding_tiles(neig)
-                    n_ind = np.where(temp_board[n] == np.inf)[0]
-                    n = n[n_ind]
-                    
-                    if sum(np.isin(n, n_tiles)) == 2:
-                        if self.logic_search(chain=c, tile=tile, board=temp_board, neig=neig):
-                            logic_success = True
-                            self.window.update()
-                            self.run_bot()
-                            tmp = self.get_interesting_tiles()
-                            temp_board[tmp] = self.seen_tiles[tmp]
-                        break
+                nearby_tiles = self.get_neighbours(tile, surrounding_tiles)
+                hidden_index = np.where(temp_board[nearby_tiles] == np.inf)[0]
                 
+                # if len(hidden_index) <= temp_board[tile] - 1: continue
+
+                neighbours = np.intersect1d(nearby_tiles, c)
+                if self.neighbour_search(neighbours, tile, temp_board, surrounding_tiles):
+                    logic_success = True
+                    break
+               
         return logic_success
                 
+    def neighbour_search(self, neighbours, tile, temp_board, surrounding_tiles):
+
+        for neig in neighbours:
+
+            if self.logic_search(tile=tile, board=temp_board, neighbours=surrounding_tiles, neig=neig):
+                # self.window.update()
+                return True
+
     def check_tiles(self):
 
         operation_done = False
         tile_check = self.get_interesting_tiles()
 
         for tile in tile_check:
-
-            # print('Checking tile#: {}'.format(tile))
             
             tile_num = self.tile_values[tile]
             nearby_tiles = self.get_surrounding_tiles(tile)
@@ -423,7 +466,6 @@ class Minesweeper():
             elif not self.__is_flagged(i):
                 self.update_tiles(points=i, state='flag')
 
-        self.window.update()
 
     def tile_index(self, x, y):
         return x + y*self.setting('col')
@@ -521,7 +563,39 @@ class Minesweeper():
             for j in range(row):
                 index = i + j*col
                 self.canvas_board.create_text((i+1/2)*tile_width, (j+1/2)*tile_width, text= index)
+
+    def draw_win_screen(self):
+
+        dx = int(self.canvas_board.winfo_width()/2)
+        dy = int(self.canvas_board.winfo_height()/2)
+        w = self.setting('w') + 10
+
+        self.draw_rectangle(dx - 3*w, dy - w, dx + 3*w, dy + w, fill='#fbd083', alpha=.6)
+        self.canvas_board.create_text(dx, dy-5, anchor=S, text='Congratulations!', font=self.__get_font())
+        win_text = 'You completed the \n game in {0} seconds!'.format(self.game_time)
+
+        self.canvas_board.create_text(dx, dy+5, anchor=N, text=win_text, font=self.__get_font(size=12), justify=CENTER)    
         
+    def draw_lose_screen(self):
+
+        dx = int(self.canvas_board.winfo_width()/2)
+        dy = int(self.canvas_board.winfo_height()/2)
+        w = self.setting('w') + 10
+
+        self.draw_rectangle(dx - 3*w, dy - w, dx + 3*w, dy + w, fill='#ed2939', alpha=.8)
+        self.canvas_board.create_text(dx, dy-5, anchor=S, text='Failure!', font=self.__get_font())
+        self.canvas_board.create_text(dx, dy+5, anchor=N, text='You failed in securing the mines!', font=self.__get_font(size=12), justify=CENTER)
+
+    def draw_rectangle(self, x1, y1, x2, y2, **kwargs):
+        if 'alpha' in kwargs:
+            alpha = int(kwargs.pop('alpha') * 255)
+            fill = kwargs.pop('fill')
+            fill = (int(fill[1:3],16),int(fill[3:5],16),int(fill[5:7],16),alpha)
+            image = Image.new('RGBA', (x2-x1, y2-y1), fill)
+            self.test_canvas.append(ImageTk.PhotoImage(image))
+            self.canvas_board.create_image(x1, y1, image=self.test_canvas[-1], anchor='nw')
+        return self.canvas_board.create_rectangle(x1, y1, x2, y2, **kwargs)
+
     def draw_tiles(self, row, col, w):
 
         self.drawn_tiles = np.zeros(col*row, dtype=object)
@@ -574,7 +648,6 @@ class Minesweeper():
         ### Open Tile
         elif state == 'open':
 
-            self.window.update()
             text = np.array(self.tile_values[points])
             self.seen_tiles[points] = text
             
@@ -621,14 +694,18 @@ class Minesweeper():
             for p in points:
                 self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
             self.game_state = Game_state.DONE
-            print('Game Over')
+            self.draw_lose_screen()
+            self.win_state = False
         
         ### Check Victory
         n_hidden = np.count_nonzero(self.seen_tiles == np.inf)
         n_flags = np.count_nonzero(self.seen_tiles == -np.inf)
         if n_hidden + n_flags == self.setting('bomb'):
             self.game_state = Game_state.DONE
-            print('Victory')
+            self.draw_win_screen()
+            self.win_state = True
+        
+        self.window.update()
 
     def __update_flags(self, dif):
         self.flag_counter += dif
