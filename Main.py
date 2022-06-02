@@ -7,8 +7,6 @@ import threading
 import numpy as np
 import time
 
-from numpy.core.defchararray import index
-
 cwd = os.getcwd()
 
 class Game_state(Enum):
@@ -19,7 +17,6 @@ class Game_state(Enum):
     DEBUG = 4
     BOT = 5
 
-
 class Minesweeper():
     
     def __init__(self):
@@ -29,9 +26,10 @@ class Minesweeper():
 
         # Load Application Data              
 
-        self.dif = 'medium'
+        self.dif = 'hard'
         self.game_parameters = self.__load_settings('settings')
         self.array_button = []
+        self.enable_graphics = True
 
         # Screen Settings
         self.window = Tk()
@@ -156,18 +154,24 @@ class Minesweeper():
     def initiate_bot(self, event):
         """ Initiates minesweeper auto-solver, ensures it can only run once/game """
 
-        # self.win_state = False
-        # win_counter = 0
+        self.win_state = False
+        win_counter = 0
+        in_time = time.time()
+        game_count = 1
+        # self.enable_graphics = False
 
-        # for i in range(100):
-        #     win_counter += self.win_state
-        #     self.win_state = False
-        #     self.new_game()
-        if self.game_state != Game_state.BOT:
+        for i in range(game_count):
+            print('Starting attempt {} our of {}'.format(i, game_count))
+            self.new_game()
             self.game_state = Game_state.BOT
             self.run_bot(initial_run=True)
-
-        # print(win_counter)
+            win_counter += self.win_state
+            self.win_state = False
+        
+        total_time = time.time()-in_time
+        print('Time ellapsed: {:.2f} s'.format(total_time))
+        print('Average game time: {} s'.format(total_time/game_count))
+        print('Win Rate: {:.2f}%'.format(win_counter/game_count*100))
 
     def run_bot(self, initial_run=False):
 
@@ -188,22 +192,50 @@ class Minesweeper():
             self.tile_action(open_tile)
 
         while True:
-            if self.check_tiles() == False: break
+            if self.basic_search() == False: break
 
-        self.window.update()
+        if self.enable_graphics: self.window.update()
         if self.backtrack_bot():
             self.run_bot()
 
         if self.game_state == Game_state.DONE: return
 
         open_tile = self.get_random_tile()
-        print('Guessing tile', open_tile)
         self.update_tiles(open_tile, state='open')
         self.run_bot()
 
     def get_random_tile(self):
-        hidden_index = np.where(self.seen_tiles == np.inf)[0]
-        return np.random.choice(hidden_index, 1)[0]
+
+        remaining_bombs = self.setting('bomb') - len(np.where(self.seen_tiles == -np.inf)[0])
+        hidden_num = np.where(self.seen_tiles == np.inf)[0]
+
+        game_size = self.setting('row')*self.setting('col')
+        board_risk = np.ones(game_size, float)*-1
+        board_risk[hidden_num] = 0
+
+        for t in self.get_interesting_tiles():
+            
+            val = self.seen_tiles[t]
+            nearby_tiles = self.get_surrounding_tiles(t)
+            hidden_index = np.where(self.seen_tiles[nearby_tiles] == np.inf)[0]
+            flag_count = len(np.where(self.seen_tiles[nearby_tiles] == -np.inf)[0])
+            hidden_tiles = nearby_tiles[hidden_index]
+
+            risk = (val - flag_count) / len(hidden_tiles)
+
+            for i in hidden_tiles:
+                if board_risk[i] < risk:
+                    board_risk[i] = risk
+
+        ### TODO should do -1 on remaining_bombs when checking interesting tiles as they are guaranteed bombs w. % number
+        ran_risk = remaining_bombs/len(hidden_num)
+        board_risk[np.where(board_risk == 0)] = ran_risk
+        board_risk[np.where(board_risk == -1)] = np.inf
+
+        min_risk = np.min(board_risk)
+        min_index = np.where(board_risk == min_risk)[0]
+
+        return np.random.choice(min_index, 1)[0]
 
     def get_interesting_tiles(self):
 
@@ -215,53 +247,53 @@ class Minesweeper():
 
     def logic_search(self, tile, board, neig, neighbours):
         
-        tile_check = self.get_neighbours(tile, neighbours)
+        tile_val = board[tile]
+        tile_surr = self.get_neighbours(tile, neighbours)
+        tile_hidden_i = np.where(board[tile_surr] == np.inf)[0]
+        tile_hidden = tile_surr[tile_hidden_i]
+        tile_flag_i = np.where(board[tile_surr] == -np.inf)[0]
+        tile_flag_count = len(tile_flag_i)
+        tile_flag = tile_surr[tile_flag_i]
+        tile_flag_rem = tile_val - tile_flag_count
+
+        neig_val = board[neig]
+        neig_surr = self.get_neighbours(neig, neighbours)
+        neig_hidden_i = np.where(board[neig_surr] == np.inf)[0]
+        neig_hidden = neig_surr[neig_hidden_i]
+        neig_flag_i = np.where(board[neig_surr] == -np.inf)[0]
+        neig_flag_count = len(neig_flag_i)
+        neig_flag = neig_surr[neig_flag_i]
+        neig_flag_rem = neig_val - neig_flag_count
         
-        hidden_index = np.where(board[tile_check] == np.inf)[0]
-        n_hidden = tile_check[hidden_index]
+        common_flag = np.intersect1d(tile_flag, neig_flag)
+        common_hidden = np.intersect1d(tile_hidden, neig_hidden)
 
-        tmp = self.get_neighbours(neig, neighbours)
-        t_index = np.where(board[tmp] == np.inf)[0]
-        t_hidden = tmp[t_index]
+        tile_hidden_unique = np.setxor1d(common_hidden, tile_hidden)
+        tile_flag_unique = np.setxor1d(common_flag, tile_flag)
+        neig_hidden_unique = np.setxor1d(common_hidden, neig_hidden)
 
-        common_hidden = np.intersect1d(n_hidden, t_hidden)
-        com_hidden_num = len(common_hidden)
-        tile_flags = len(np.where(board[tmp] == -np.inf)[0])
-        tile_rem_flag = board[neig] - tile_flags
+        if tile_flag_rem == neig_flag_rem:
+            if np.sum(np.isin(tile_hidden, common_hidden)) == np.size(tile_hidden):
+                return self.update_tiles(neig_hidden_unique, state='open')
+            elif np.sum(np.isin(neig_hidden, common_hidden)) == np.size(neig_hidden):
+                return self.update_tiles(tile_hidden_unique, state='open')
 
-        t_board = np.setxor1d(tmp, common_hidden)
-        print(t_board)
+        elif neig_val + len(tile_hidden_unique) + len(tile_flag_unique) == tile_val:
+            a = self.update_tiles(tile_hidden_unique, state='flag')   
+            b = self.update_tiles(neig_hidden_unique, state='open')
+            if a or b: return True
+            else: return False
         
-        
-        # a = np.setxor1d(n_hidden, t_hidden)    
+        elif neig_val - tile_flag_rem - neig_flag_count == len(neig_hidden_unique):
+            return self.update_tiles(neig_hidden_unique, state='flag')
 
-        ### if # hidden i tile > # kavarstående flaggor > skip
+        ### TODO add seach through blocks for mines, i.e. 
+        # Leftern 2 n:s indicate bomb in xx > rightern x safe
+        # n x n n
+        # n x n x
+        # n n n n
 
-        # # Num flag for neighbour
-        # neig_flags = len(np.where(board[tmp] == -np.inf)[0])
-        # neig_rem_flag = board[neig] - neig_flags
-
-        # tile_flags = len(np.where(board[tile_check] == -np.inf)[0])
-
-        # #### TODO FIX LOGIX BELOW!!!
-        # # if len(a) > board[neig]: return False
-
-        # if tile_flags + neig_rem_flag < board[tile]:
-        #     self.update_tiles(a, state='flag')
-        #     return True
-        # elif tile_flags + neig_rem_flag == board[tile]:
-        #     self.update_tiles(a, state='open')
-        #     return True
-        # return False
-
-
-        # if len(f_index) + 1 == board[neig]:
-        #     self.update_tiles(a, state='open')
-        #     return True
-        # elif len(f_index) + len(a) + 1 == board[neig]:
-        #     self.update_tiles(a, state='flag')
-        #     return True
-        # return False
+        return False
 
     def get_chain(self, tile, neighbours, board, chain):
 
@@ -292,8 +324,9 @@ class Minesweeper():
         temp_board = np.zeros(np.size(self.seen_tiles))
         temp_board[tile_check] = self.seen_tiles[tile_check]
 
-        ### TODO chains jump through 1 block spaces i.e. xxx ?
-        ### x=hidden, n=num, f=flag > still chain        nfn 
+        visited = []
+        ### TODO add list of tested indexes, i.e [2, 17] so can check and not redo case [17, 2] later on.
+
         chains = []
         for tile in tile_check:
             if any(tile in i for i in chains): continue
@@ -305,30 +338,21 @@ class Minesweeper():
 
         for c in chains:
             if len(c) == 1: continue
-            
-            for tile in c: 
-                
-                nearby_tiles = self.get_neighbours(tile, surrounding_tiles)
-                hidden_index = np.where(temp_board[nearby_tiles] == np.inf)[0]
-                
-                # if len(hidden_index) <= temp_board[tile] - 1: continue
 
+            for tile in c:
+
+                nearby_tiles = self.get_neighbours(tile, surrounding_tiles)
                 neighbours = np.intersect1d(nearby_tiles, c)
-                if self.neighbour_search(neighbours, tile, temp_board, surrounding_tiles):
-                    logic_success = True
-                    break
-               
+
+                for neig in neighbours:
+                    visited.append([tile, neig])
+                    if [neig, tile] in visited: continue
+                    if self.logic_search(tile=tile, board=temp_board, neighbours=surrounding_tiles, neig=neig):
+                        logic_success = True
+            
         return logic_success
                 
-    def neighbour_search(self, neighbours, tile, temp_board, surrounding_tiles):
-
-        for neig in neighbours:
-
-            if self.logic_search(tile=tile, board=temp_board, neighbours=surrounding_tiles, neig=neig):
-                # self.window.update()
-                return True
-
-    def check_tiles(self):
+    def basic_search(self):
 
         operation_done = False
         tile_check = self.get_interesting_tiles()
@@ -466,7 +490,6 @@ class Minesweeper():
             elif not self.__is_flagged(i):
                 self.update_tiles(points=i, state='flag')
 
-
     def tile_index(self, x, y):
         return x + y*self.setting('col')
     
@@ -485,12 +508,14 @@ class Minesweeper():
 
     def new_game(self):
         self.game_time = 0
-        self.__update_timer()
         self.flag_counter = self.__setting(self.dif, 2)
-        self.__update_flags(0)
         self.game_state = Game_state.STARTUP
-        self.canvas_board.delete("all")
-        self.draw_tiles(row=self.setting('row'), col=self.setting('col'), w=self.setting('w'))
+
+        if self.enable_graphics:
+            self.__update_timer()
+            self.__update_flags(0)
+            self.canvas_board.delete("all")
+            self.draw_tiles(row=self.setting('row'), col=self.setting('col'), w=self.setting('w'))
 
     def draw_game(self, row=16, col=30):
 
@@ -556,13 +581,15 @@ class Minesweeper():
         bomb_counter[np.where(bomb_pos == -1)] = 0
         self.tile_values += np.abs(bomb_counter)
         self.tile_values = np.reshape(self.tile_values, game_size)
-        self.draw_numbers(row=row, col=col)
+        
+        if self.enable_graphics:
+            self.draw_numbers(row=row, col=col)
 
-        tile_width = self.setting('w')
-        for i in range(col):
-            for j in range(row):
-                index = i + j*col
-                self.canvas_board.create_text((i+1/2)*tile_width, (j+1/2)*tile_width, text= index)
+            # tile_width = self.setting('w')
+            # for i in range(col):
+            #     for j in range(row):
+            #         index = i + j*col
+            #         self.canvas_board.create_text((i+1/2)*tile_width, (j+1/2)*tile_width, text= index)
 
     def draw_win_screen(self):
 
@@ -637,13 +664,16 @@ class Minesweeper():
         if self.game_state == Game_state.DONE: return
 
         points = np.array(points)
+        if np.size(points) == 0: return False
 
         if state == 'hidden':
             self.__update_flags(1)
-            color = self.__setting('tile_color', 0)
             self.seen_tiles[points] = np.inf
-            for p in points:
-                self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+            
+            if self.enable_graphics:
+                color = self.__setting('tile_color', 0)
+                for i, p in np.ndenumerate(points):
+                    self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
         
         ### Open Tile
         elif state == 'open':
@@ -664,8 +694,9 @@ class Minesweeper():
             color = self.__setting('tile_color', 1)
             for i, p in np.ndenumerate(points):
                 
-                self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
-                self.canvas_board.itemconfig(self.drawn_tiles_num[p], state='normal')
+                if self.enable_graphics:
+                    self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+                    self.canvas_board.itemconfig(self.drawn_tiles_num[p], state='normal')
 
                 ### Add blank tiles to next round
                 if self.seen_tiles[p] == 0:
@@ -681,34 +712,46 @@ class Minesweeper():
         elif state == 'flag':
             self.__update_flags(-1)
             self.seen_tiles[points] = -np.inf
-            color = self.__setting('tile_color', 2)
-            for p in points:
-                self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
-                self.completed_tiles[p] = True
+
+            if self.game_state == Game_state.BOT:
+                for p in points:
+                    self.completed_tiles[p] = True
+
+            if self.enable_graphics:
+                color = self.__setting('tile_color', 2)
+                for i, p in np.ndenumerate(points):
+                    self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
 
 
         ### Causes Game Over
-        elif state == 'bomb':
-            ### TODO add game over code!
-            color = self.__setting('tile_color', 3)
-            for p in points:
-                self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+        elif state == 'bomb': 
+
             self.game_state = Game_state.DONE
-            self.draw_lose_screen()
             self.win_state = False
+
+            if self.enable_graphics:
+                color = self.__setting('tile_color', 3)
+                for p in points:
+                    self.canvas_board.itemconfig(self.drawn_tiles[p], fill=color)
+                self.draw_lose_screen()
+            
+            return
         
         ### Check Victory
         n_hidden = np.count_nonzero(self.seen_tiles == np.inf)
         n_flags = np.count_nonzero(self.seen_tiles == -np.inf)
         if n_hidden + n_flags == self.setting('bomb'):
             self.game_state = Game_state.DONE
-            self.draw_win_screen()
             self.win_state = True
+            
+            if self.enable_graphics:
+                self.draw_win_screen()
         
-        self.window.update()
+        return True
 
     def __update_flags(self, dif):
         self.flag_counter += dif
+        if not self.enable_graphics: return
         self.canvas.itemconfig(self.flag_indicator,
                                text='{} \u2690'.format(self.flag_counter))
 
