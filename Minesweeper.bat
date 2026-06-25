@@ -1,1 +1,1 @@
-python Main.py
+uv run Main.py
